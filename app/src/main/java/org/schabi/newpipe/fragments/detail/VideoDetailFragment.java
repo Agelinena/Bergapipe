@@ -803,6 +803,9 @@ public final class VideoDetailFragment
         binding.detailControlsPopup.setOnLongClickListener(this);
         binding.detailControlsPlaylistAppend.setOnClickListener(this);
         binding.detailControlsPlaylistAppend.setOnLongClickListener(this);
+        // Bergapipe: botão "Pasta" ao lado de "Adicionar à playlist".
+        io.github.agelinena.bergapipe.folders.BergaFolders.attachDetailButton(
+                this, binding.detailControlsPlaylistAppend, () -> currentInfo);
         binding.detailControlsDownload.setOnClickListener(this);
         binding.detailControlsDownload.setOnLongClickListener(this);
         binding.detailControlsShare.setOnClickListener(this);

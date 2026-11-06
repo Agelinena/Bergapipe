@@ -32,10 +32,20 @@ android {
             resValue 'string', 'app_name', 'Bergapipe'
         }
     }
+    // Código e recursos do Bergapipe que usam classes do PipePipe (pastas, depois a
+    // transmissão). Compilados junto com o app, mas fora das pastas do criador.
+    sourceSets {
+        main {
+            java.srcDirs += "$rootDir/berga/app-src/java"
+            res.srcDirs += "$rootDir/berga/app-src/res"
+        }
+    }
 }
 
 dependencies {
     implementation project(':berga')
+    implementation "androidx.room:room-ktx:${androidxRoomVersion}"
+    implementation "androidx.lifecycle:lifecycle-runtime-ktx:${androidxLifecycleVersion}"
 }
 
 // Roda depois do onVariants do app/build.gradle (registrado antes), então sobrescreve

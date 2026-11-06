@@ -33,18 +33,38 @@ Para as versões do criador entrarem sem conflito, quase tudo fica no módulo [`
 |---|---|
 | `berga/app-overlay.gradle` | ID, nome, versão (`X.Y.Z-bergaN`) e nome dos APKs |
 | `berga/upstream.properties` | Versão stable do PipePipe usada como base |
-| `berga/src/main/.../update/` | Atualizador pelo GitHub deste repositório |
+| `berga/src/main/.../update/` | Atualizador pelo GitHub deste repositório (módulo `:berga`) |
+| `berga/app-src/` | Código que usa classes do PipePipe, compilado junto com o app: pastas |
 
-Os únicos ganchos em arquivos do PipePipe (procure por `Bergapipe:`):
+O módulo `:berga` não enxerga as classes do app; o que precisa delas (telas, listas, player)
+fica em `berga/app-src/`, que o overlay soma às pastas de código do app.
+
+Os únicos ganchos em arquivos do PipePipe (procure por `Bergapipe`):
 
 | Arquivo | Gancho |
 |---|---|
 | `settings.gradle` | `include ':berga'` |
 | `app/build.gradle` | `apply from:` do overlay, na última linha |
 | `app/.../NewVersionWorker.kt` | Manda a checagem de versão para o atualizador do Bergapipe |
+| `app/.../settings/tabs/Tab.java` | Tipo de aba `BERGA_FOLDERS` |
+| `app/.../info_list/dialog/StreamDialogDefaultEntry.java` | Entrada "Salvar na pasta" |
+| `app/.../info_list/dialog/InfoItemDialog.java` | Põe a entrada no menu de segurar o vídeo |
+| `app/.../fragments/detail/VideoDetailFragment.java` | Botão "Pasta" na tela do vídeo |
 
 Regra para funcionalidade nova: código e recursos em `berga/`, com prefixo `berga_` nos recursos.
-Nos arquivos do PipePipe, só ganchos de poucas linhas, marcados com `// Bergapipe:`.
+Nos arquivos do PipePipe, só ganchos de poucas linhas, marcados com `// Bergapipe`.
+
+## Pastas
+
+- A aba **Pastas** entra sozinha na página principal na primeira abertura (dá para tirar ou mover
+  em Ajustes → Conteúdo → Conteúdo da página principal).
+- Segurar um vídeo em qualquer lista → **Salvar na pasta**; na tela do vídeo, botão **Pasta**.
+- Ficam num banco próprio, `berga_pastas.db`. O backup do PipePipe ainda não inclui as pastas.
+
+## Quando um build falha
+
+O workflow abre (ou comenta) a issue **Build do Bergapipe falhando** com os erros do Gradle, e
+fecha a issue quando volta a compilar.
 
 ## Compilar
 

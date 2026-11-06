@@ -157,6 +157,7 @@ public abstract class Tab {
     //////////////////////////////////////////////////////////////////////////*/
 
     public enum Type {
+        BERGA_FOLDERS(new BergaFoldersTab()), // Bergapipe: aba "Pastas"
         BLANK(new BlankTab()),
         DEFAULT_KIOSK(new DefaultKioskTab()),
         SUBSCRIPTIONS(new SubscriptionsTab()),

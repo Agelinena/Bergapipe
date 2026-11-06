@@ -346,6 +346,7 @@ public final class InfoItemDialog {
             addAllEntries(
                     StreamDialogDefaultEntry.DOWNLOAD,
                     StreamDialogDefaultEntry.APPEND_PLAYLIST,
+                    StreamDialogDefaultEntry.BERGA_SAVE_TO_FOLDER, // Bergapipe
                     StreamDialogDefaultEntry.SHARE,
                     StreamDialogDefaultEntry.OPEN_IN_BROWSER
             );

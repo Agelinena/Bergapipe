@@ -26,6 +26,10 @@
             <meta-data
                 android:name="io.github.agelinena.bergapipe.BergaInitializer"
                 android:value="androidx.startup" />
+            <!-- Classe em berga/app-src (compilada no app): põe a aba Pastas uma vez. -->
+            <meta-data
+                android:name="io.github.agelinena.bergapipe.folders.FoldersTabInitializer"
+                android:value="androidx.startup" />
         </provider>
     </application>
 </manifest>

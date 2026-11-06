@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Textos das pastas do Bergapipe. O prefixo berga_ evita colisão com os recursos do PipePipe. -->
+<resources>
+    <string name="berga_folders_tab">Pastas</string>
+    <string name="berga_folders_empty">Nenhuma pasta ainda.\nToque em + para criar a primeira, ou segure um vídeo e escolha \"Salvar na pasta\".</string>
+    <string name="berga_folder_empty">Esta pasta está vazia.\nSegure um vídeo em qualquer lista e escolha \"Salvar na pasta\".</string>
+    <string name="berga_folder_new">Nova pasta</string>
+    <string name="berga_folder_name_hint">Nome da pasta</string>
+    <string name="berga_folder_save_to">Salvar na pasta</string>
+    <string name="berga_folder_button">Pasta</string>
+    <string name="berga_folder_saved_in">Salvo em \"%1$s\"</string>
+    <string name="berga_folder_removed_all">Tirado de todas as pastas</string>
+    <string name="berga_folder_rename">Renomear</string>
+    <string name="berga_folder_delete">Apagar</string>
+    <string name="berga_folder_delete_title">Apagar a pasta \"%1$s\"?</string>
+    <string name="berga_folder_delete_message">Os vídeos saem só desta pasta. Eles continuam nas outras pastas e nas playlists.</string>
+    <string name="berga_folder_play_from_here">Tocar a partir daqui</string>
+    <string name="berga_folder_background_from_here">Tocar em segundo plano a partir daqui</string>
+    <string name="berga_folder_other_folders">Salvar em outras pastas</string>
+    <string name="berga_folder_remove_video">Tirar desta pasta</string>
+    <string name="berga_folder_play_all">Tocar tudo</string>
+    <string name="berga_folder_background_all">Tocar tudo em segundo plano</string>
+    <string name="berga_save">Salvar</string>
+    <string name="berga_ok">OK</string>
+    <plurals name="berga_folder_video_count">
+        <item quantity="one">%d vídeo</item>
+        <item quantity="other">%d vídeos</item>
+    </plurals>
+    <plurals name="berga_folder_saved_in_many">
+        <item quantity="one">Salvo em %d pasta</item>
+        <item quantity="other">Salvo em %d pastas</item>
+    </plurals>
+</resources>
