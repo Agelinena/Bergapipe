@@ -247,7 +247,7 @@ class CastMediaPreparer(
             fun playable(s: Stream) = s.deliveryMethod == DeliveryMethod.SABR ||
                 (s.isUrl && (s.deliveryMethod == DeliveryMethod.PROGRESSIVE_HTTP || s.deliveryMethod == DeliveryMethod.DASH))
             fun isH264(v: VideoStream) = v.format == MediaFormat.MPEG_4 &&
-                (v.codec.isNullOrEmpty() || v.codec.startsWith("avc"))
+                (v.codec?.startsWith("avc") ?: true)
 
             val video = info.videoOnlyStreams
                 .filter { isH264(it) && playable(it) && height(it) in 1..MAX_HEIGHT }
@@ -255,7 +255,7 @@ class CastMediaPreparer(
 
             val m4a = info.audioStreams.filter { it.format == MediaFormat.M4A && playable(it) }
             // Faixa original quando o vídeo tem dublagens (no YouTube o id termina em ".4").
-            val audio = m4a.filter { it.audioTrackId == null || it.audioTrackId.endsWith(".4") }
+            val audio = m4a.filter { it.audioTrackId?.endsWith(".4") ?: true }
                 .ifEmpty { m4a }
                 .maxByOrNull { it.averageBitrate }
 
