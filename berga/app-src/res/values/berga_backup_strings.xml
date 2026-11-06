@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Textos do backup automático do Bergapipe. -->
+<resources>
+    <string name="berga_backup_title">Backup automático</string>
+    <string name="berga_backup_entry_summary">Backup diário para Nextcloud, Backblaze B2, Google Drive ou uma pasta do celular</string>
+    <string name="berga_backup_channel">Backup automático</string>
+    <string name="berga_backup_failed_title">O backup automático falhou</string>
+
+    <string name="berga_backup_enabled">Backup diário</string>
+    <string name="berga_backup_enabled_summary">Uma vez por dia, com o celular carregando e no Wi-Fi (a pasta do celular não precisa de Wi-Fi). Guarda os 14 mais recentes.</string>
+    <string name="berga_backup_status">Situação</string>
+    <string name="berga_backup_status_never">Ainda nenhum backup</string>
+    <string name="berga_backup_status_last">Último backup: %1$s</string>
+    <string name="berga_backup_status_failed">Última tentativa falhou (%1$s): %2$s</string>
+
+    <string name="berga_backup_category_destination">Destino</string>
+    <string name="berga_backup_destination">Para onde vai o backup</string>
+    <string name="berga_backup_destination_none">Nenhum. Toque para escolher.</string>
+    <string name="berga_backup_destination_nextcloud_summary">Nextcloud: %1$s em %2$s</string>
+    <string name="berga_backup_destination_s3_summary">S3: bucket %1$s em %2$s</string>
+    <string name="berga_backup_destination_drive_summary">Google Drive, pasta Bergapipe</string>
+    <string name="berga_backup_destination_drive_pending">Google Drive: falta entrar com a conta Google</string>
+    <string name="berga_backup_destination_local_summary">Pasta do celular: %1$s</string>
+
+    <string name="berga_backup_type_nextcloud">Nextcloud / WebDAV</string>
+    <string name="berga_backup_type_s3">Backblaze B2 / S3</string>
+    <string name="berga_backup_type_drive">Google Drive</string>
+    <string name="berga_backup_type_local">Pasta no celular</string>
+
+    <string name="berga_backup_nextcloud_message">Use uma senha de app do Nextcloud (Configurações pessoais → Segurança → Criar nova senha de app), não a sua senha normal. A pasta é criada se não existir. Para outro servidor WebDAV, coloque o endereço completo da pasta no campo do servidor.</string>
+    <string name="berga_backup_s3_message">No Backblaze: crie um bucket privado e uma Application Key só para ele, com leitura e escrita. O endpoint aparece na página do bucket (ex.: s3.us-west-004.backblazeb2.com). A região sai do endpoint; preencha só se for outro provedor.</string>
+    <string name="berga_backup_drive_message">O Google exige um projeto seu no Google Cloud (uma vez só):\n\n1. console.cloud.google.com → crie um projeto.\n2. APIs e serviços → Biblioteca → ative a Google Drive API.\n3. Tela de consentimento OAuth → Externo; adicione o escopo …/auth/drive.file; depois em Público-alvo, clique em Publicar app (em Teste, o acesso expira em 7 dias).\n4. Credenciais → Criar credenciais → ID do cliente OAuth → tipo App para computador.\n5. Copie o ID e a chave secreta do cliente aqui.\n\nO Bergapipe só enxerga os arquivos que ele mesmo cria no seu Drive.</string>
+    <string name="berga_backup_drive_sign_in">Entrar com Google</string>
+    <string name="berga_backup_drive_waiting">Termine o login no navegador e volte para cá…</string>
+    <string name="berga_backup_drive_client_missing">Informe o ID do cliente OAuth</string>
+
+    <string name="berga_backup_field_server">Endereço do Nextcloud</string>
+    <string name="berga_backup_field_user">Usuário</string>
+    <string name="berga_backup_field_app_password">Senha de app</string>
+    <string name="berga_backup_field_folder">Pasta</string>
+    <string name="berga_backup_field_endpoint">Endpoint</string>
+    <string name="berga_backup_field_region">Região</string>
+    <string name="berga_backup_field_region_hint">automática pelo endpoint</string>
+    <string name="berga_backup_field_bucket">Bucket</string>
+    <string name="berga_backup_field_prefix">Prefixo (pasta dentro do bucket)</string>
+    <string name="berga_backup_field_key_id">Key ID</string>
+    <string name="berga_backup_field_secret_key">Application Key (chave secreta)</string>
+    <string name="berga_backup_field_client_id">ID do cliente</string>
+    <string name="berga_backup_field_client_secret">Chave secreta do cliente</string>
+    <string name="berga_backup_field_keep">guardada; deixe em branco para manter</string>
+
+    <string name="berga_backup_category_encryption">Criptografia</string>
+    <string name="berga_backup_encrypt">Criptografar com senha</string>
+    <string name="berga_backup_encrypt_summary">AES-256. Sem a senha ninguém lê o backup, nem o provedor. Desligado, o arquivo é um zip normal que o PipePipe original também importa.</string>
+    <string name="berga_backup_password">Senha do backup</string>
+    <string name="berga_backup_password_summary">Trocar a senha. Backups antigos continuam com a senha antiga.</string>
+    <string name="berga_backup_password_message">Guarde esta senha fora do celular (no Bitwarden, por exemplo). Sem ela não dá para restaurar.</string>
+    <string name="berga_backup_password_other_message">Este backup foi feito com outra senha. Digite a senha dele.</string>
+    <string name="berga_backup_password_field">Senha</string>
+    <string name="berga_backup_password_confirm">Repita a senha</string>
+    <string name="berga_backup_password_short">A senha precisa ter pelo menos 8 caracteres</string>
+    <string name="berga_backup_password_mismatch">As senhas não são iguais</string>
+    <string name="berga_backup_password_saved">Senha do backup guardada</string>
+
+    <string name="berga_backup_category_actions">Agora</string>
+    <string name="berga_backup_now">Fazer backup agora</string>
+    <string name="berga_backup_now_summary">Envia um backup para o destino neste momento</string>
+    <string name="berga_backup_restore">Restaurar um backup</string>
+    <string name="berga_backup_restore_summary">Escolhe um backup do destino e troca os dados atuais por ele (histórico, inscrições, playlists, pastas e configurações)</string>
+    <string name="berga_backup_restore_confirm_title">Restaurar este backup?</string>
+    <string name="berga_backup_restore_confirm_message">Os dados atuais do Bergapipe vão ser trocados pelos do backup de %1$s. O app reinicia em seguida.</string>
+    <string name="berga_backup_restore_confirm">Restaurar</string>
+
+    <string name="berga_backup_configure_first">Escolha primeiro para onde vai o backup</string>
+    <string name="berga_backup_testing">Testando o acesso…</string>
+    <string name="berga_backup_test_ok">Destino configurado</string>
+    <string name="berga_backup_running">Fazendo o backup…</string>
+    <string name="berga_backup_done">Backup enviado: %1$s</string>
+    <string name="berga_backup_listing">Procurando backups…</string>
+    <string name="berga_backup_none_found">Nenhum backup do Bergapipe neste destino</string>
+    <string name="berga_backup_restoring">Baixando e restaurando…</string>
+    <string name="berga_backup_restored">Backup restaurado. Reiniciando…</string>
+    <string name="berga_backup_error_title">Não deu certo</string>
+</resources>

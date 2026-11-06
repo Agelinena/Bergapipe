@@ -35,7 +35,7 @@ Para as versões do criador entrarem sem conflito, quase tudo fica no módulo [`
 | `berga/app-overlay.gradle` | ID, nome, versão (`X.Y.Z-bergaN`) e nome dos APKs |
 | `berga/upstream.properties` | Versão stable do PipePipe usada como base |
 | `berga/src/main/.../update/` | Atualizador pelo GitHub deste repositório (módulo `:berga`) |
-| `berga/app-src/` | Código que usa classes do PipePipe, compilado junto com o app: pastas |
+| `berga/app-src/` | Código que usa classes do PipePipe, compilado junto com o app: pastas e backup automático |
 
 O módulo `:berga` não enxerga as classes do app; o que precisa delas (telas, listas, player)
 fica em `berga/app-src/`, que o overlay soma às pastas de código do app.
@@ -51,6 +51,7 @@ Os únicos ganchos em arquivos do PipePipe (procure por `Bergapipe`):
 | `app/.../info_list/dialog/StreamDialogDefaultEntry.java` | Entrada "Salvar na pasta" |
 | `app/.../info_list/dialog/InfoItemDialog.java` | Põe a entrada no menu de segurar o vídeo |
 | `app/.../fragments/detail/VideoDetailFragment.java` | Botão "Pasta" na tela do vídeo |
+| `app/src/main/res/xml/backup_settings.xml` | Item "Backup automático" em Backup e restauração |
 
 Regra para funcionalidade nova: código e recursos em `berga/`, com prefixo `berga_` nos recursos.
 Nos arquivos do PipePipe, só ganchos de poucas linhas, marcados com `// Bergapipe`.
@@ -60,7 +61,21 @@ Nos arquivos do PipePipe, só ganchos de poucas linhas, marcados com `// Bergapi
 - A aba **Pastas** entra sozinha na página principal na primeira abertura (dá para tirar ou mover
   em Ajustes → Conteúdo → Conteúdo da página principal).
 - Segurar um vídeo em qualquer lista → **Salvar na pasta**; na tela do vídeo, botão **Pasta**.
-- Ficam num banco próprio, `berga_pastas.db`. O backup do PipePipe ainda não inclui as pastas.
+- Ficam num banco próprio, `berga_pastas.db`. O backup automático inclui as pastas; o export
+  manual do PipePipe, não.
+
+## Backup automático
+
+Ajustes → Backup e restauração → **Backup automático**.
+
+- Destinos: Nextcloud/WebDAV, Backblaze B2/S3 (assinatura AWS V4), Google Drive (OAuth pelo
+  navegador, escopo `drive.file`, com um projeto seu no Google Cloud) e pasta no celular.
+- Diário, com o celular carregando e no Wi-Fi; guarda os 14 mais recentes.
+- O arquivo é o zip do "Exportar banco de dados" do PipePipe mais `berga_pastas.db`.
+  Com criptografia: AES-256-GCM, chave por PBKDF2 da senha (`.zip.enc`).
+- Senhas e chaves ficam fora das configurações do PipePipe (não vão para o backup), cifradas
+  com uma chave do Android Keystore.
+- **Restaurar um backup** troca banco, configurações e pastas e reinicia o app.
 
 ## Quando um build falha
 

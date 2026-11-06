@@ -2,6 +2,15 @@
                   xmlns:app="http://schemas.android.com/apk/res-auto"
                   android:key="general_preferences"
                   android:title="@string/settings_category_backup_title">
+    <!-- Bergapipe: backup automático -->
+    <Preference
+            android:fragment="io.github.agelinena.bergapipe.backup.AutoBackupSettingsFragment"
+            android:key="berga_auto_backup"
+            android:summary="@string/berga_backup_entry_summary"
+            android:title="@string/berga_backup_title"
+            app:singleLineTitle="false"
+            app:iconSpaceReserved="false" />
+
     <Preference
             android:key="@string/import_data"
             android:summary="@string/import_data_summary"

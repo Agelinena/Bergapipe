@@ -141,7 +141,21 @@ interface FoldersDao {
 abstract class FoldersDatabase : RoomDatabase() {
     abstract fun dao(): FoldersDao
 
+    /** Grava o WAL no arquivo principal, para o backup copiar um .db completo. */
+    fun checkpoint() {
+        openHelper.writableDatabase.query("PRAGMA wal_checkpoint(FULL)").use { it.moveToFirst() }
+    }
+
     companion object {
+        /** Fecha o banco antes de a restauração trocar o arquivo (o app reinicia em seguida). */
+        @JvmStatic
+        fun closeForRestore() {
+            synchronized(this) {
+                instance?.close()
+                instance = null
+            }
+        }
+
         const val FILE_NAME = "berga_pastas.db"
 
         @Volatile
