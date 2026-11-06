@@ -3,9 +3,9 @@
 # - Todo dia: se saiu uma stable nova (release que não é pre-release), junta o Client daquela
 #   versão no main, compila com o Extractor da mesma versão e publica a release vX.Y.Z-bergaN.
 #   Se a junção der conflito, abre uma issue e não publica nada.
-# - Push no main: só compila (confere que nada quebrou) e guarda os APKs como artefato.
+# - Push no main (menos só documentação): compila e publica uma revisão nova (vX.Y.Z-bergaN+1).
 # - Manual (Actions > Bergapipe > Run workflow): procura stable nova na hora; com "publicar"
-#   marcado, publica também as mudanças do Bergapipe sem esperar o PipePipe.
+#   marcado, publica de novo mesmo sem mudança.
 #
 # Secrets: BERGAPIPE_KEYSTORE (keystore PKCS12 em base64) e BERGAPIPE_KEYSTORE_PASSWORD.
 name: Bergapipe
@@ -135,7 +135,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
-      PUBLISH: ${{ needs.sync.outputs.changed == 'true' || inputs.publicar == true }}
+      PUBLISH: ${{ github.event_name == 'push' || needs.sync.outputs.changed == 'true' || inputs.publicar == true }}
     steps:
       - uses: actions/checkout@v4
         with:

@@ -15,8 +15,9 @@ O workflow [`.github/workflows/bergapipe.yml`](.github/workflows/bergapipe.yml) 
 
 Se a junção conflitar, o workflow abre uma issue com os arquivos em conflito e não publica nada.
 
-Um push no `main` só compila, para conferir. Para publicar mudanças do Bergapipe sem esperar o
-PipePipe: **Actions → Bergapipe → Run workflow**, com **publicar** marcado.
+Um push no `main` que mexe em código também publica, como revisão nova (`berga2`, `berga3`...).
+Push só de documentação (`.md`) não roda nada. Para publicar de novo sem mudança:
+**Actions → Bergapipe → Run workflow**, com **publicar** marcado.
 
 ## Atualização no celular
 
