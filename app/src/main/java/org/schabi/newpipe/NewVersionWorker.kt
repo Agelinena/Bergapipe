@@ -214,6 +214,8 @@ class NewVersionWorker(
          */
         @JvmStatic
         fun enqueueNewVersionCheckingWork(context: Context, isManual: Boolean) {
+            // Bergapipe: as atualizações vêm do GitHub do Bergapipe, não do PipePipe.
+            return io.github.agelinena.bergapipe.update.BergaUpdater.enqueueCheck(context, isManual)
             val workRequest = OneTimeWorkRequestBuilder<NewVersionWorker>()
                 .setInputData(workDataOf(IS_MANUAL to isManual))
                 .build()

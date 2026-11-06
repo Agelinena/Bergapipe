@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Textos do Bergapipe. O prefixo berga_ evita colisão com os recursos do PipePipe. -->
+<resources>
+    <string name="berga_update_channel">Atualizações do Bergapipe</string>
+    <string name="berga_update_title">Atualizar o Bergapipe</string>
+    <string name="berga_update_available_title">Bergapipe %1$s disponível</string>
+    <string name="berga_update_available_text">Toque para baixar e instalar.</string>
+    <string name="berga_update_action">Atualizar</string>
+    <string name="berga_update_up_to_date">O Bergapipe já está na versão mais recente.</string>
+    <string name="berga_update_check_failed">Não deu para procurar atualizações. Tente de novo mais tarde.</string>
+    <string name="berga_update_downloading">Baixando a versão %1$s…</string>
+    <string name="berga_update_installing">Instalando…</string>
+    <string name="berga_update_need_permission">Para se atualizar sozinho, o Bergapipe precisa poder instalar apps. Ative \"Permitir desta fonte\" e volte aqui.</string>
+    <string name="berga_update_open_settings">Abrir ajustes</string>
+    <string name="berga_update_failed">A atualização falhou: %1$s</string>
+    <string name="berga_update_failed_unknown">A atualização falhou.</string>
+    <string name="berga_cancel">Cancelar</string>
+    <string name="berga_close">Fechar</string>
+</resources>

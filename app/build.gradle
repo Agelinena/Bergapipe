@@ -315,3 +315,6 @@ static String getGitWorkingBranch() {
         return ""
     }
 }
+
+// Bergapipe: ID, nome, versão e módulo próprio. Única linha nossa neste arquivo.
+apply from: "$rootDir/berga/app-overlay.gradle"

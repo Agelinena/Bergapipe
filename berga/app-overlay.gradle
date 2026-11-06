@@ -1,0 +1,68 @@
+// Bergapipe: o que muda no app do PipePipe sem editar as linhas do criador.
+// Aplicado na última linha do app/build.gradle, depois de toda a configuração dele.
+
+def bergaUpstream = new Properties()
+file("$rootDir/berga/upstream.properties").withInputStream { bergaUpstream.load(it) }
+
+// Revisão do Bergapipe sobre a mesma versão do PipePipe (1, 2, 3...). O workflow passa
+// -PbergaRev; um build local fica com 0.
+def bergaRevision = (findProperty('bergaRev') ?: '0').toString().toInteger()
+if (bergaRevision < 0 || bergaRevision > 999) {
+    throw new GradleException("bergaRev precisa estar entre 0 e 999 (veio $bergaRevision)")
+}
+
+def bergaUpstreamName = android.defaultConfig.versionName
+def bergaUpstreamCode = android.defaultConfig.versionCode
+def bergaVersionName = "${bergaUpstreamName}-berga${bergaRevision}"
+// versionCode = código do PipePipe + 3 dígitos da revisão + 1 dígito da arquitetura.
+// Cresce a cada versão do PipePipe e a cada revisão do Bergapipe.
+def bergaBaseCode = bergaUpstreamCode * 10000 + bergaRevision * 10
+def bergaAbiCodes = ['armeabi-v7a': 1, 'x86': 2, 'x86_64': 3, 'arm64-v8a': 4]
+
+android {
+    defaultConfig {
+        // Outro ID: instala ao lado do PipePipe original e só aceita APKs com a chave do Bergapipe.
+        applicationId 'io.github.agelinena.bergapipe'
+    }
+    buildTypes {
+        debug {
+            resValue 'string', 'app_name', 'Bergapipe Debug'
+        }
+        release {
+            resValue 'string', 'app_name', 'Bergapipe'
+        }
+    }
+}
+
+dependencies {
+    implementation project(':berga')
+}
+
+// Roda depois do onVariants do app/build.gradle (registrado antes), então sobrescreve
+// o versionCode, o versionName e o nome do APK que ele define.
+androidComponents.onVariants(androidComponents.selector().all()) { variant ->
+    variant.outputs.each { output ->
+        def name = output.outputFileName.get()
+        def abi = bergaAbiCodes.keySet().sort { -it.length() }.find { name.contains(it) }
+        output.versionCode.set(bergaBaseCode + (abi ? bergaAbiCodes[abi] : 0))
+        output.versionName.set(bergaVersionName)
+        def suffix = variant.name == 'release' ? '' : "-${variant.name}"
+        output.outputFileName.set("Bergapipe_${bergaVersionName}-${abi ?: 'universal'}${suffix}.apk")
+    }
+}
+
+// version.json vai junto com os APKs na release; é o que o atualizador do app lê.
+def bergaVersionFile = layout.buildDirectory.file('berga/version.json')
+def bergaVersionJson = groovy.json.JsonOutput.toJson([
+        versionName: bergaVersionName,
+        versionCode: bergaBaseCode,
+        upstreamTag: bergaUpstream.getProperty('upstreamTag'),
+])
+tasks.register('bergaVersionJson') {
+    def out = bergaVersionFile
+    def json = bergaVersionJson
+    outputs.file(out)
+    doLast {
+        out.get().asFile.text = json
+    }
+}

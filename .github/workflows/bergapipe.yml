@@ -1,0 +1,241 @@
+# Bergapipe: acompanha as versões stable do PipePipe, compila, assina e publica.
+#
+# - Todo dia: se saiu uma stable nova (release que não é pre-release), junta o Client daquela
+#   versão no main, compila com o Extractor da mesma versão e publica a release vX.Y.Z-bergaN.
+#   Se a junção der conflito, abre uma issue e não publica nada.
+# - Push no main: só compila (confere que nada quebrou) e guarda os APKs como artefato.
+# - Manual (Actions > Bergapipe > Run workflow): procura stable nova na hora; com "publicar"
+#   marcado, publica também as mudanças do Bergapipe sem esperar o PipePipe.
+#
+# Secrets: BERGAPIPE_KEYSTORE (keystore PKCS12 em base64) e BERGAPIPE_KEYSTORE_PASSWORD.
+name: Bergapipe
+
+on:
+  schedule:
+    - cron: "23 7 * * *" # 04:23 em Brasília
+  workflow_dispatch:
+    inputs:
+      publicar:
+        description: "Publicar uma release mesmo sem versão nova do PipePipe"
+        type: boolean
+        default: false
+  push:
+    branches: [main]
+    paths-ignore: ["**.md", "doc/**", "fastlane/**"]
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: bergapipe
+  cancel-in-progress: false
+
+env:
+  UPSTREAM_META: InfinityLoop1308/PipePipe
+  UPSTREAM_CLIENT: https://github.com/InfinityLoop1308/PipePipeClient.git
+  UPSTREAM_EXTRACTOR: InfinityLoop1308/PipePipeExtractor
+
+jobs:
+  sync:
+    name: Procurar stable nova do PipePipe
+    if: github.event_name != 'push'
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.merge.outputs.changed }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Ler a última stable
+        id: stable
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag=$(gh api "repos/$UPSTREAM_META/releases/latest" --jq .tag_name)
+          case "$tag" in
+            v[0-9]*.[0-9]*.[0-9]*-*|"") echo "::error::releases/latest devolveu '$tag', que não é stable"; exit 1 ;;
+          esac
+          client=$(gh api "repos/$UPSTREAM_META/contents/PipePipeClient?ref=$tag" --jq .sha)
+          extractor=$(gh api "repos/$UPSTREAM_META/contents/PipePipeExtractor?ref=$tag" --jq .sha)
+          current=$(sed -n 's/^upstreamTag=//p' berga/upstream.properties)
+          {
+            echo "tag=$tag"
+            echo "client=$client"
+            echo "extractor=$extractor"
+            echo "current=$current"
+          } >> "$GITHUB_OUTPUT"
+          echo "PipePipe stable: $tag (Client $client, Extractor $extractor). Bergapipe está em $current."
+
+      - name: Juntar a stable nova no main
+        id: merge
+        if: steps.stable.outputs.tag != steps.stable.outputs.current
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.stable.outputs.tag }}
+          CLIENT: ${{ steps.stable.outputs.client }}
+          EXTRACTOR: ${{ steps.stable.outputs.extractor }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch --no-tags "$UPSTREAM_CLIENT" "$CLIENT"
+
+          if ! git merge --no-edit -m "Junta o PipePipe $TAG" "$CLIENT"; then
+            conflicts=$(git diff --name-only --diff-filter=U | sed 's/^/- `/; s/$/`/')
+            git merge --abort
+            title="Conflito ao juntar o PipePipe $TAG"
+            open=$(gh issue list --state open --search "\"$title\" in:title" --json number --jq 'length')
+            if [ "$open" = "0" ]; then
+              gh issue create --title "$title" --body "$(cat <<EOF
+          A stable **$TAG** do PipePipe conflita com as mudanças do Bergapipe. Nada foi publicado; o app continua na versão atual.
+
+          Arquivos em conflito:
+          $conflicts
+
+          Para resolver na máquina local:
+
+          \`\`\`bash
+          git fetch $UPSTREAM_CLIENT $CLIENT
+          git merge $CLIENT
+          # resolver os conflitos, depois atualizar berga/upstream.properties:
+          #   upstreamTag=$TAG
+          #   clientCommit=$CLIENT
+          #   extractorCommit=$EXTRACTOR
+          git commit && git push
+          \`\`\`
+
+          Depois rode o workflow à mão com **publicar** marcado.
+          EOF
+              )"
+            fi
+            echo "::error::Conflito ao juntar o PipePipe $TAG"
+            exit 1
+          fi
+
+          cat > berga/upstream.properties <<EOF
+          # Versão stable do PipePipe em que o Bergapipe se baseia.
+          # O workflow .github/workflows/bergapipe.yml atualiza este arquivo sozinho a cada stable nova.
+          upstreamTag=$TAG
+          clientCommit=$CLIENT
+          extractorCommit=$EXTRACTOR
+          EOF
+          git add berga/upstream.properties
+          git commit -m "Bergapipe: base no PipePipe $TAG"
+          git push origin HEAD:main
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Compilar
+    needs: sync
+    if: >-
+      always() &&
+      (needs.sync.result == 'success' || needs.sync.result == 'skipped') &&
+      (github.event_name == 'push' || needs.sync.outputs.changed == 'true' || inputs.publicar == true)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      PUBLISH: ${{ needs.sync.outputs.changed == 'true' || inputs.publicar == true }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Depois do sync, o main tem o commit da junção.
+          ref: ${{ github.event_name == 'push' && github.sha || 'main' }}
+          fetch-depth: 0
+          path: PipePipeClient
+
+      - name: Ler a base do PipePipe
+        id: base
+        working-directory: PipePipeClient
+        run: |
+          echo "tag=$(sed -n 's/^upstreamTag=//p' berga/upstream.properties)" >> "$GITHUB_OUTPUT"
+          echo "extractor=$(sed -n 's/^extractorCommit=//p' berga/upstream.properties)" >> "$GITHUB_OUTPUT"
+          echo "name=$(sed -nE 's/^def appVersionName = "(.*)"/\1/p' app/build.gradle)" >> "$GITHUB_OUTPUT"
+
+      # O settings.gradle do Client usa includeBuild('../PipePipeExtractor').
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ env.UPSTREAM_EXTRACTOR }}
+          ref: ${{ steps.base.outputs.extractor }}
+          path: PipePipeExtractor
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Escolher a revisão
+        id: rev
+        working-directory: PipePipeClient
+        env:
+          NAME: ${{ steps.base.outputs.name }}
+        run: |
+          last=$(git tag -l "v${NAME}-berga*" | sed -nE 's/.*-berga([0-9]+)$/\1/p' | sort -n | tail -1)
+          rev=$(( ${last:-0} + 1 ))
+          echo "rev=$rev" >> "$GITHUB_OUTPUT"
+          echo "version=${NAME}-berga${rev}" >> "$GITHUB_OUTPUT"
+          echo "Versão: ${NAME}-berga${rev}"
+
+      - name: Preparar a chave de assinatura
+        env:
+          KEYSTORE_BASE64: ${{ secrets.BERGAPIPE_KEYSTORE }}
+          KEYSTORE_PASSWORD: ${{ secrets.BERGAPIPE_KEYSTORE_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ] || [ -z "$KEYSTORE_PASSWORD" ]; then
+            if [ "$PUBLISH" = "true" ]; then
+              echo "::error::Faltam os secrets BERGAPIPE_KEYSTORE e BERGAPIPE_KEYSTORE_PASSWORD"
+              exit 1
+            fi
+            echo "::warning::Sem a chave: os APKs saem sem assinatura (só para conferir o build)"
+            exit 0
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/bergapipe.p12"
+          # Variáveis que o app/build.gradle do PipePipe já lê para assinar.
+          {
+            echo "KEY_PATH=$RUNNER_TEMP/bergapipe.p12"
+            echo "KEY_STORE_PASSWORD=$KEYSTORE_PASSWORD"
+            echo "KEY_PASSWORD=$KEYSTORE_PASSWORD"
+            echo "KEY_ALIAS=bergapipe"
+          } >> "$GITHUB_ENV"
+
+      - name: Compilar
+        working-directory: PipePipeClient
+        run: ./gradlew --no-daemon :app:assembleRelease :app:bergaVersionJson -PbergaRev=${{ steps.rev.outputs.rev }}
+
+      - name: Separar os APKs
+        working-directory: PipePipeClient
+        run: |
+          mkdir -p "$RUNNER_TEMP/out"
+          cp app/build/outputs/apk/release/*.apk "$RUNNER_TEMP/out/"
+          cp app/build/berga/version.json "$RUNNER_TEMP/out/"
+          ls -l "$RUNNER_TEMP/out"
+          cat "$RUNNER_TEMP/out/version.json"
+          if [ -n "$KEY_PATH" ]; then
+            apksigner=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)/apksigner
+            for apk in "$RUNNER_TEMP"/out/*.apk; do
+              "$apksigner" verify --print-certs "$apk" | head -3
+            done
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Bergapipe-${{ steps.rev.outputs.version }}
+          path: ${{ runner.temp }}/out/
+          retention-days: 14
+
+      - name: Publicar a release
+        if: env.PUBLISH == 'true'
+        working-directory: PipePipeClient
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.rev.outputs.version }}
+          UPSTREAM_TAG: ${{ steps.base.outputs.tag }}
+        run: |
+          notes="Baseado no PipePipe **${UPSTREAM_TAG}** (stable). Novidades do PipePipe: https://github.com/${UPSTREAM_META}/releases/tag/${UPSTREAM_TAG}"
+          gh release create "v${VERSION}" "$RUNNER_TEMP"/out/* \
+            --title "Bergapipe ${VERSION}" \
+            --notes "$notes" \
+            --target "$(git rev-parse HEAD)" \
+            --latest
