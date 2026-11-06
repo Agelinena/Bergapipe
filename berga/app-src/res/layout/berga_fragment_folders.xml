@@ -28,6 +28,7 @@
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
         android:layout_margin="16dp"
+        android:backgroundTint="?attr/colorPrimary"
         android:contentDescription="@string/berga_folder_new"
         app:srcCompat="@drawable/berga_ic_folder_add"
         app:tint="@android:color/white" />
