@@ -7,8 +7,30 @@
     <!-- Android 12+: depois da primeira atualização feita pelo próprio app, as seguintes
          podem dispensar a confirmação do sistema. -->
     <uses-permission android:name="android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION" />
+    <!-- Transmissão: achar TVs DLNA por SSDP (multicast) e manter o Wi-Fi ativo enquanto a TV
+         puxa o vídeo do celular. -->
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
 
     <application>
+        <!-- As classes abaixo ficam em berga/app-src (compiladas no app). -->
+        <meta-data
+            android:name="com.google.android.gms.cast.framework.OPTIONS_PROVIDER_CLASS_NAME"
+            android:value="io.github.agelinena.bergapipe.cast.BergaCastOptionsProvider" />
+
+        <service
+            android:name="io.github.agelinena.bergapipe.cast.CastService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
+
+        <activity
+            android:name="io.github.agelinena.bergapipe.cast.CastControlActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:theme="@android:style/Theme.DeviceDefault.Dialog.NoActionBar" />
+
         <activity
             android:name=".update.UpdateActivity"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode"

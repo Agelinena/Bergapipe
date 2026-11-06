@@ -1,13 +1,8 @@
 package io.github.agelinena.bergapipe.folders
 
 import android.content.Context
-import android.util.TypedValue
-import android.view.View
-import android.view.ViewGroup
 import android.widget.EditText
 import android.widget.FrameLayout
-import android.widget.LinearLayout
-import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
@@ -18,14 +13,12 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.schabi.newpipe.R
 import org.schabi.newpipe.database.stream.model.StreamEntity
-import org.schabi.newpipe.extractor.stream.StreamInfo
 import org.schabi.newpipe.extractor.stream.StreamInfoItem
 
 /** Ações das pastas chamadas pelos ganchos nos arquivos do PipePipe. */
 object BergaFolders {
     /** Gravações sobrevivem ao fechamento do diálogo e da tela que o abriu. */
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-    private const val DETAIL_BUTTON_TAG = "bergapipe_folder_button"
 
     /** Entrada "Salvar na pasta" do menu de segurar o vídeo. */
     @JvmStatic
@@ -131,45 +124,6 @@ object BergaFolders {
             android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE
         )
         dialog.show()
-    }
-
-    /**
-     * Botão "Pasta" na fileira de ações da tela do vídeo, criado ao lado do botão de
-     * adicionar à playlist (sem mexer no layout do PipePipe).
-     */
-    @JvmStatic
-    fun attachDetailButton(fragment: Fragment, anchor: View, currentInfo: () -> StreamInfo?) {
-        val parent = anchor.parent as? ViewGroup ?: return
-        if (parent.findViewWithTag<View>(DETAIL_BUTTON_TAG) != null) return
-        val context = anchor.context
-        val source = anchor as? TextView
-
-        val button = TextView(context).apply {
-            tag = DETAIL_BUTTON_TAG
-            setText(R.string.berga_folder_button)
-            contentDescription = context.getString(R.string.berga_folder_save_to)
-            gravity = source?.gravity ?: android.view.Gravity.CENTER
-            if (source != null) {
-                setTextSize(TypedValue.COMPLEX_UNIT_PX, source.textSize)
-                setTextColor(source.textColors)
-                compoundDrawablePadding = source.compoundDrawablePadding
-            }
-            setPadding(anchor.paddingLeft, anchor.paddingTop, anchor.paddingRight, anchor.paddingBottom)
-            setCompoundDrawablesWithIntrinsicBounds(0, R.drawable.berga_ic_folder_add, 0, 0)
-            background = anchor.background?.constantState?.newDrawable()?.mutate()
-            isClickable = true
-            isFocusable = true
-            setOnClickListener {
-                val info = currentInfo() ?: return@setOnClickListener
-                fragment.context?.let { showSaveDialog(it, StreamEntity(info)) }
-            }
-        }
-
-        val params = when (val lp = anchor.layoutParams) {
-            is LinearLayout.LayoutParams -> LinearLayout.LayoutParams(lp)
-            else -> ViewGroup.LayoutParams(lp)
-        }
-        parent.addView(button, parent.indexOfChild(anchor) + 1, params)
     }
 
     private suspend fun toast(context: Context, text: String) = withContext(Dispatchers.Main) {

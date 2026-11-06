@@ -35,7 +35,7 @@ Para as versões do criador entrarem sem conflito, quase tudo fica no módulo [`
 | `berga/app-overlay.gradle` | ID, nome, versão (`X.Y.Z-bergaN`) e nome dos APKs |
 | `berga/upstream.properties` | Versão stable do PipePipe usada como base |
 | `berga/src/main/.../update/` | Atualizador pelo GitHub deste repositório (módulo `:berga`) |
-| `berga/app-src/` | Código que usa classes do PipePipe, compilado junto com o app: pastas e backup automático |
+| `berga/app-src/` | Código que usa classes do PipePipe, compilado junto com o app: pastas, backup automático e transmissão |
 
 O módulo `:berga` não enxerga as classes do app; o que precisa delas (telas, listas, player)
 fica em `berga/app-src/`, que o overlay soma às pastas de código do app.
@@ -48,9 +48,9 @@ Os únicos ganchos em arquivos do PipePipe (procure por `Bergapipe`):
 | `app/build.gradle` | `apply from:` do overlay, na última linha |
 | `app/.../NewVersionWorker.kt` | Manda a checagem de versão para o atualizador do Bergapipe |
 | `app/.../settings/tabs/Tab.java` | Tipo de aba `BERGA_FOLDERS` |
-| `app/.../info_list/dialog/StreamDialogDefaultEntry.java` | Entrada "Salvar na pasta" |
-| `app/.../info_list/dialog/InfoItemDialog.java` | Põe a entrada no menu de segurar o vídeo |
-| `app/.../fragments/detail/VideoDetailFragment.java` | Botão "Pasta" na tela do vídeo |
+| `app/.../info_list/dialog/StreamDialogDefaultEntry.java` | Entradas "Salvar na pasta" e "Transmitir na TV" |
+| `app/.../info_list/dialog/InfoItemDialog.java` | Põe as entradas no menu de segurar o vídeo |
+| `app/.../fragments/detail/VideoDetailFragment.java` | Botões "Pasta" e "TV" na tela do vídeo (`BergaDetail`) |
 | `app/src/main/res/xml/backup_settings.xml` | Item "Backup automático" em Backup e restauração |
 
 Regra para funcionalidade nova: código e recursos em `berga/`, com prefixo `berga_` nos recursos.
@@ -76,6 +76,19 @@ Ajustes → Backup e restauração → **Backup automático**.
 - Senhas e chaves ficam fora das configurações do PipePipe (não vão para o backup), cifradas
   com uma chave do Android Keystore.
 - **Restaurar um backup** troca banco, configurações e pastas e reinicia o app.
+
+## Transmissão para a TV
+
+Botão **TV** na tela do vídeo, ou segurar um vídeo → **Transmitir na TV**.
+
+- **Chromecast**: Google Cast SDK com o receptor padrão do Google (precisa do Play Services).
+- **TVs DLNA** (Samsung e outras): descoberta por SSDP e controle por UPnP AVTransport (SOAP),
+  por socket próprio (`LanHttp`), já que o app bloqueia `http://` nas bibliotecas de rede.
+- O celular baixa o melhor H.264 até 1080p e o melhor AAC (por URL ou pela sessão SABR, com as
+  peças dos downloads do PipePipe), junta com o ffmpeg num MP4 e serve pela rede local com
+  Range e cabeçalhos DLNA (`MediaServer`). A TV puxa o vídeo do celular, que precisa ficar no
+  mesmo Wi-Fi; o `CastService` mantém o app vivo e mostra os controles na notificação.
+- Primeira versão: espera baixar antes de tocar. Começar a tocar enquanto baixa fica para depois.
 
 ## Quando um build falha
 

@@ -61,6 +61,9 @@ public enum StreamDialogDefaultEntry {
     // Bergapipe: "Salvar na pasta".
     BERGA_SAVE_TO_FOLDER(R.string.berga_folder_save_to, (fragment, item) ->
             io.github.agelinena.bergapipe.folders.BergaFolders.showSaveDialog(fragment, item)),
+    // Bergapipe: "Transmitir na TV".
+    BERGA_CAST(R.string.berga_cast_action, (fragment, item) ->
+            io.github.agelinena.bergapipe.cast.BergaCast.castItem(fragment, item)),
     SHOW_CHANNEL_DETAILS(R.string.show_channel_details, (fragment, item) -> {
         if (item.getUploaderUrl() != null && !Objects.equals(item.getUploaderUrl(), "")) {
             openChannelFragment(fragment, item, item.getUploaderUrl());

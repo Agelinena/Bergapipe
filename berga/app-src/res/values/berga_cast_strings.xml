@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Textos da transmissão para a TV (Google Cast e DLNA). -->
+<resources>
+    <string name="berga_cast_button">TV</string>
+    <string name="berga_cast_action">Transmitir na TV</string>
+    <string name="berga_cast_channel">Transmissão para a TV</string>
+    <string name="berga_cast_searching">Procurando TVs na rede…</string>
+    <string name="berga_cast_pick">Escolha a TV</string>
+    <string name="berga_cast_none_found">Nenhuma TV encontrada. Confira se o celular e a TV estão no mesmo Wi-Fi.</string>
+    <string name="berga_cast_kind_chromecast">Chromecast</string>
+    <string name="berga_cast_kind_dlna">TV DLNA</string>
+    <string name="berga_cast_no_play_services">Sem Google Play Services: só as TVs DLNA aparecem.</string>
+    <string name="berga_cast_preparing_for">Preparando para %1$s</string>
+    <string name="berga_cast_loading">Carregando o vídeo…</string>
+    <string name="berga_cast_downloading">Baixando para a TV: %1$d%% (%2$s)</string>
+    <string name="berga_cast_muxing">Juntando vídeo e áudio…</string>
+    <string name="berga_cast_on_device">Na TV: %1$s</string>
+    <string name="berga_cast_play">Tocar</string>
+    <string name="berga_cast_pause">Pausar</string>
+    <string name="berga_cast_back">−15 s</string>
+    <string name="berga_cast_forward">+30 s</string>
+    <string name="berga_cast_stop">Parar</string>
+    <string name="berga_cast_failed">A transmissão falhou</string>
+</resources>
