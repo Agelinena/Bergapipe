@@ -52,6 +52,10 @@
             <meta-data
                 android:name="io.github.agelinena.bergapipe.folders.FoldersTabInitializer"
                 android:value="androidx.startup" />
+            <!-- Barra de controle da transmissão no rodapé das telas do app. -->
+            <meta-data
+                android:name="io.github.agelinena.bergapipe.cast.CastBarInitializer"
+                android:value="androidx.startup" />
         </provider>
     </application>
 </manifest>

@@ -7,6 +7,7 @@ import android.util.Xml
 import androidx.mediarouter.media.MediaRouteSelector
 import androidx.mediarouter.media.MediaRouter
 import com.google.android.gms.cast.CastMediaControlIntent
+import com.google.android.gms.cast.HlsSegmentFormat
 import com.google.android.gms.cast.MediaInfo
 import com.google.android.gms.cast.MediaLoadRequestData
 import com.google.android.gms.cast.MediaMetadata
@@ -55,7 +56,8 @@ data class TvStatus(val positionMs: Long, val durationMs: Long, val playing: Boo
 /** Controle de uma TV depois de conectada. */
 interface TvSession {
     val deviceName: String
-    suspend fun load(url: String, title: String, thumbnail: String?, durationMs: Long, sizeBytes: Long)
+    /** [hls]: [url] é uma playlist HLS que ainda cresce (tocar enquanto baixa). */
+    suspend fun load(url: String, title: String, thumbnail: String?, durationMs: Long, sizeBytes: Long, hls: Boolean)
     suspend fun play()
     suspend fun pause()
     suspend fun seek(positionMs: Long)
@@ -110,14 +112,17 @@ class GoogleCastTvSession private constructor(
     private val client: RemoteMediaClient
         get() = session.remoteMediaClient ?: throw IOException("O Chromecast desconectou")
 
-    override suspend fun load(url: String, title: String, thumbnail: String?, durationMs: Long, sizeBytes: Long) {
+    override suspend fun load(
+        url: String, title: String, thumbnail: String?, durationMs: Long, sizeBytes: Long, hls: Boolean,
+    ) {
         val metadata = MediaMetadata(MediaMetadata.MEDIA_TYPE_MOVIE).apply {
             putString(MediaMetadata.KEY_TITLE, title)
             thumbnail?.let { addImage(WebImage(Uri.parse(it))) }
         }
         val media = MediaInfo.Builder(url)
             .setStreamType(MediaInfo.STREAM_TYPE_BUFFERED)
-            .setContentType("video/mp4")
+            .setContentType(if (hls) "application/x-mpegURL" else "video/mp4")
+            .apply { if (hls) setHlsSegmentFormat(HlsSegmentFormat.TS) }
             .setMetadata(metadata)
             .apply { if (durationMs > 0) setStreamDuration(durationMs) }
             .build()
@@ -278,7 +283,9 @@ object DlnaDevices {
 class DlnaTvSession(private val renderer: DlnaRenderer) : TvSession {
     override val deviceName: String get() = renderer.name
 
-    override suspend fun load(url: String, title: String, thumbnail: String?, durationMs: Long, sizeBytes: Long) =
+    override suspend fun load(
+        url: String, title: String, thumbnail: String?, durationMs: Long, sizeBytes: Long, hls: Boolean,
+    ) =
         withContext(Dispatchers.IO) {
             // Muitas TVs Samsung recusam um vídeo novo sem parar o anterior.
             runCatching { soap("Stop", "") }

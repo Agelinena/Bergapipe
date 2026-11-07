@@ -21,16 +21,17 @@ import java.security.SecureRandom
 import kotlin.concurrent.thread
 
 /**
- * Servidor HTTP mínimo que entrega o MP4 preparado para a TV, com suporte a Range (para a TV
- * poder avançar e voltar) e os cabeçalhos DLNA que as TVs Samsung pedem. O endereço tem um
- * token aleatório, então só quem recebeu o link (a TV) acha o arquivo.
+ * Servidor HTTP mínimo que entrega à TV os arquivos de uma pasta: o MP4 preparado, ou a playlist
+ * HLS e os pedaços quando toca enquanto baixa. Tem suporte a Range (para a TV poder avançar e
+ * voltar) e os cabeçalhos DLNA que as TVs Samsung pedem. O endereço tem um token aleatório,
+ * então só quem recebeu o link (a TV) acha os arquivos.
  */
-class MediaServer(private val file: File, private val mime: String = "video/mp4") {
+class MediaServer(private val dir: File, private val mainName: String) {
     private val token = ByteArray(12).also { SecureRandom().nextBytes(it) }
         .joinToString("") { "%02x".format(it.toInt() and 0xff) }
     private var server: ServerSocket? = null
 
-    val path: String get() = "/$token/media.mp4"
+    private val prefix: String get() = "/$token/"
 
     /** Começa a escutar e devolve o endereço que a TV deve abrir. */
     fun start(context: Context): String {
@@ -49,7 +50,7 @@ class MediaServer(private val file: File, private val mime: String = "video/mp4"
                 thread(name = "BergaCastClient", isDaemon = true) { handle(client) }
             }
         }
-        return "http://$host:${socket.localPort}$path"
+        return "http://$host:${socket.localPort}$prefix$mainName"
     }
 
     fun stop() {
@@ -74,11 +75,15 @@ class MediaServer(private val file: File, private val mime: String = "video/mp4"
                 val method = parts.getOrNull(0).orEmpty()
                 val target = parts.getOrNull(1).orEmpty().substringBefore('?')
                 val out = socket.getOutputStream()
-                if (target != path || (method != "GET" && method != "HEAD")) {
+                val name = target.removePrefix(prefix)
+                val file = File(dir, name)
+                if (!target.startsWith(prefix) || !SAFE_NAME.matches(name) || !file.isFile ||
+                    (method != "GET" && method != "HEAD")
+                ) {
                     respond(out, "404 Not Found", mapOf("Content-Length" to "0"))
                     return
                 }
-                serveFile(out, method == "HEAD", headers["range"])
+                serveFile(out, file, method == "HEAD", headers["range"])
             } catch (e: IOException) {
                 // A TV fecha conexões o tempo todo ao avançar o vídeo.
                 Log.d(TAG, "Conexão encerrada: ${e.message}")
@@ -86,8 +91,13 @@ class MediaServer(private val file: File, private val mime: String = "video/mp4"
         }
     }
 
-    private fun serveFile(out: OutputStream, headOnly: Boolean, range: String?) {
+    private fun serveFile(out: OutputStream, file: File, headOnly: Boolean, range: String?) {
         val length = file.length()
+        val mime = when (file.extension) {
+            "m3u8" -> "application/vnd.apple.mpegurl"
+            "ts" -> "video/mp2t"
+            else -> "video/mp4"
+        }
         var start = 0L
         var end = length - 1
         var partial = false
@@ -116,6 +126,8 @@ class MediaServer(private val file: File, private val mime: String = "video/mp4"
             "transferMode.dlna.org" to "Streaming",
             "contentFeatures.dlna.org" to DLNA_FEATURES,
         )
+        // A playlist cresce enquanto baixa: a TV tem que buscar de novo, nunca do cache.
+        if (file.extension == "m3u8") headers["Cache-Control"] = "no-cache"
         if (partial) headers["Content-Range"] = "bytes $start-$end/$length"
         respond(out, if (partial) "206 Partial Content" else "200 OK", headers)
         if (headOnly) return
@@ -144,6 +156,7 @@ class MediaServer(private val file: File, private val mime: String = "video/mp4"
 
     companion object {
         private const val TAG = "BergaCast"
+        private val SAFE_NAME = Regex("[A-Za-z0-9_.-]+")
         const val DLNA_FEATURES =
             "DLNA.ORG_OP=01;DLNA.ORG_CI=0;DLNA.ORG_FLAGS=01700000000000000000000000000000"
 

@@ -120,10 +120,7 @@ class CastService : Service() {
                 .addAction(0, getString(R.string.berga_cast_stop), action(ACTION_STOP))
             is CastState.Active -> builder
                 .setContentTitle(state.title)
-                .setContentText(
-                    getString(R.string.berga_cast_on_device, state.deviceName) + " · " +
-                        CastTexts.time(state.positionMs) + " / " + CastTexts.time(state.durationMs)
-                )
+                .setContentText(CastTexts.active(this, state))
                 .addAction(0, getString(R.string.berga_cast_back), action(ACTION_BACK))
                 .addAction(
                     0, getString(if (state.playing) R.string.berga_cast_pause else R.string.berga_cast_play),
@@ -166,6 +163,14 @@ internal object CastTexts {
         val total = (ms / 1000).coerceAtLeast(0)
         return if (total >= 3600) "%d:%02d:%02d".format(total / 3600, total / 60 % 60, total % 60)
         else "%d:%02d".format(total / 60, total % 60)
+    }
+
+    /** "Na TV: Sala · 1:23 / 10:00 · baixado 45%" */
+    fun active(context: Context, state: CastState.Active): String {
+        val text = context.getString(R.string.berga_cast_on_device, state.deviceName) + " · " +
+            time(state.positionMs) + " / " + time(state.durationMs)
+        val downloaded = state.downloaded ?: return text
+        return text + " · " + context.getString(R.string.berga_cast_downloaded, (downloaded * 100).toInt())
     }
 
     fun preparing(context: Context, state: CastState.Preparing): String = when {

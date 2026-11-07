@@ -88,7 +88,13 @@ Botão **TV** na tela do vídeo, ou segurar um vídeo → **Transmitir na TV**.
   peças dos downloads do PipePipe), junta com o ffmpeg num MP4 e serve pela rede local com
   Range e cabeçalhos DLNA (`MediaServer`). A TV puxa o vídeo do celular, que precisa ficar no
   mesmo Wi-Fi; o `CastService` mantém o app vivo e mostra os controles na notificação.
-- Primeira versão: espera baixar antes de tocar. Começar a tocar enquanto baixa fica para depois.
+- **Chromecast toca enquanto baixa** (`CastHlsStream`): os downloads crescem em arquivos,
+  pipes alimentam o ffmpeg, que gera uma playlist HLS (pedaços MPEG-TS de 4 s) crescendo; a TV
+  começa com 3 pedaços. Se falhar antes de a TV começar, cai para baixar tudo e depois tocar.
+- **TVs DLNA** esperam baixar tudo (não tocam HLS de forma confiável).
+- Enquanto a TV está conectada, uma barra fica no rodapé de todas as telas (`CastBar`, por
+  `ActivityLifecycleCallbacks`); a janela de controle só minimiza. Ao transmitir, o player do
+  celular é fechado.
 
 ## Quando um build falha
 

@@ -1,6 +1,7 @@
 package io.github.agelinena.bergapipe.cast
 
 import android.content.Context
+import android.content.Intent
 import android.util.Log
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -14,6 +15,8 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.schabi.newpipe.extractor.stream.StreamInfo
+import org.schabi.newpipe.player.PlayerService
+import org.schabi.newpipe.player.helper.PlayerHolder
 import java.io.File
 import java.io.IOException
 
@@ -36,6 +39,8 @@ sealed class CastState {
         val durationMs: Long,
         val playing: Boolean,
         val quality: String,
+        /** Quanto já baixou, enquanto toca e baixa ao mesmo tempo; null quando terminou. */
+        val downloaded: Float? = null,
     ) : CastState()
 
     data class Failed(val deviceName: String, val title: String, val message: String) : CastState()
@@ -54,6 +59,7 @@ object CastManager {
     private var job: Job? = null
     private var session: TvSession? = null
     private var server: MediaServer? = null
+    private var hls: CastHlsStream? = null
     @Volatile private var cancelled = false
 
     /**
@@ -68,6 +74,7 @@ object CastManager {
         // Antes de ligar o serviço: com o estado Idle ele se desligaria na hora.
         mutableState.value = CastState.Preparing(device.name, title, null)
         CastService.start(app)
+        stopPhonePlayer(app)
 
         job = scope.launch {
             var shownTitle = title
@@ -82,30 +89,23 @@ object CastManager {
                 val plan = CastMediaPreparer.choose(info)
                 mutableState.value = CastState.Preparing(device.name, shownTitle, 0f, quality = plan.label)
 
-                val file = withContext(Dispatchers.IO) {
-                    CastMediaPreparer(
-                        app,
-                        onProgress = { progress ->
-                            mutableState.value = CastState.Preparing(
-                                device.name, shownTitle, progress ?: 1f, muxing = progress == null, quality = plan.label
-                            )
-                        },
-                        isCancelled = { cancelled },
-                    ).prepare(info, plan, File(app.cacheDir, "berga-cast"))
-                }
-
-                val mediaServer = MediaServer(file)
-                val url = withContext(Dispatchers.IO) { mediaServer.start(app) }
-                server = mediaServer
-
-                val tv: TvSession = when (device) {
-                    is TvDevice.GoogleCast -> GoogleCastTvSession.connect(app, device)
-                    is TvDevice.Dlna -> DlnaTvSession(device.renderer)
-                }
-                session = tv
                 val durationMs = info.duration * 1000
-                tv.load(url, shownTitle, info.thumbnailUrl, durationMs, file.length())
-                mutableState.value = CastState.Active(tv.deviceName, shownTitle, 0, durationMs, true, plan.label)
+                var tv: TvSession? = null
+                if (device is TvDevice.GoogleCast) {
+                    // Chromecast: começa a tocar enquanto baixa. Se der errado antes de a TV
+                    // começar, cai para o jeito antigo (baixar tudo e depois tocar).
+                    try {
+                        tv = startStreaming(app, device, info, plan, shownTitle, durationMs)
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        if (cancelled) throw CastMediaPreparer.CancelledException()
+                        Log.w(TAG, "Tocar enquanto baixa falhou; baixando tudo antes", e)
+                        stopStream()
+                        mutableState.value = CastState.Preparing(device.name, shownTitle, 0f, quality = plan.label)
+                    }
+                }
+                if (tv == null) tv = startAfterDownload(app, device, info, plan, shownTitle, durationMs)
 
                 watch(tv)
             } catch (e: CancellationException) {
@@ -121,6 +121,81 @@ object CastManager {
         }
     }
 
+    /** Toca enquanto baixa (HLS). Volta quando a TV já começou. */
+    private suspend fun startStreaming(
+        app: Context, device: TvDevice.GoogleCast, info: StreamInfo, plan: CastPlan,
+        title: String, durationMs: Long,
+    ): TvSession {
+        lateinit var stream: CastHlsStream
+        val preparer = CastMediaPreparer(
+            app,
+            onProgress = { progress -> onStreamProgress(device.name, title, plan.label, progress ?: 1f) },
+            isCancelled = { cancelled || stream.isStopped },
+        )
+        stream = CastHlsStream(app, preparer, plan, File(app.cacheDir, "berga-cast/hls"))
+        hls = stream
+        withContext(Dispatchers.IO) {
+            stream.start()
+            stream.awaitReady({ cancelled })
+        }
+        val mediaServer = MediaServer(File(app.cacheDir, "berga-cast/hls"), CastHlsStream.PLAYLIST)
+        val url = withContext(Dispatchers.IO) { mediaServer.start(app) }
+        server = mediaServer
+
+        val tv = GoogleCastTvSession.connect(app, device)
+        session = tv
+        tv.load(url, title, info.thumbnailUrl, durationMs, 0, hls = true)
+        val downloaded = (mutableState.value as? CastState.Preparing)?.progress
+        mutableState.value = CastState.Active(
+            tv.deviceName, title, 0, durationMs, true, plan.label,
+            downloaded = if (stream.isDownloadFinished) null else downloaded,
+        )
+        return tv
+    }
+
+    private fun onStreamProgress(deviceName: String, title: String, quality: String, progress: Float) {
+        when (val current = mutableState.value) {
+            is CastState.Preparing -> mutableState.value = CastState.Preparing(deviceName, title, progress, quality = quality)
+            is CastState.Active -> mutableState.value = current.copy(downloaded = if (progress >= 1f) null else progress)
+            else -> Unit
+        }
+    }
+
+    /** Baixa tudo, junta num MP4 e só então manda para a TV (Samsung, ou se o HLS falhar). */
+    private suspend fun startAfterDownload(
+        app: Context, device: TvDevice, info: StreamInfo, plan: CastPlan, title: String, durationMs: Long,
+    ): TvSession {
+        val file = withContext(Dispatchers.IO) {
+            CastMediaPreparer(
+                app,
+                onProgress = { progress ->
+                    mutableState.value = CastState.Preparing(
+                        device.name, title, progress ?: 1f, muxing = progress == null, quality = plan.label
+                    )
+                },
+                isCancelled = { cancelled },
+            ).prepare(info, plan, File(app.cacheDir, "berga-cast/full"))
+        }
+
+        val mediaServer = MediaServer(file.parentFile!!, file.name)
+        val url = withContext(Dispatchers.IO) { mediaServer.start(app) }
+        server = mediaServer
+
+        val tv: TvSession = when (device) {
+            is TvDevice.GoogleCast -> GoogleCastTvSession.connect(app, device)
+            is TvDevice.Dlna -> DlnaTvSession(device.renderer)
+        }
+        session = tv
+        tv.load(url, title, info.thumbnailUrl, durationMs, file.length(), hls = false)
+        mutableState.value = CastState.Active(tv.deviceName, title, 0, durationMs, true, plan.label)
+        return tv
+    }
+
+    private fun stopStream() {
+        hls?.stop()
+        hls = null
+    }
+
     /** Acompanha a TV a cada segundo até o vídeo acabar ou a TV sumir. */
     private suspend fun watch(tv: TvSession) {
         var sawPlaying = false
@@ -134,6 +209,7 @@ object CastManager {
                 continue
             }
             misses = 0
+            hls?.backgroundError()?.let { throw IOException("O download parou: $it") }
             if (status.playing) sawPlaying = true
             if (sawPlaying && status.ended) {
                 cleanup(stopTv = false)
@@ -144,6 +220,7 @@ object CastManager {
                 positionMs = if (status.positionMs > 0 || status.playing) status.positionMs else current.positionMs,
                 durationMs = if (status.durationMs > 0) status.durationMs else current.durationMs,
                 playing = status.playing,
+                downloaded = if (hls?.isDownloadFinished != false) null else current.downloaded,
             )
         }
     }
@@ -182,6 +259,15 @@ object CastManager {
         }
     }
 
+    /** Fecha o player do celular (o mesmo "fechar" da notificação dele). */
+    private fun stopPhonePlayer(context: Context) {
+        runCatching {
+            if (PlayerHolder.getInstance().isPlayerOpen) {
+                context.sendBroadcast(Intent(PlayerService.ACTION_CLOSE).setPackage(context.packageName))
+            }
+        }.onFailure { Log.w(TAG, "Não deu para fechar o player do celular", it) }
+    }
+
     fun dismissError() {
         if (mutableState.value is CastState.Failed) mutableState.value = CastState.Idle
     }
@@ -190,6 +276,7 @@ object CastManager {
         val tv = session
         session = null
         if (stopTv && tv != null) runCatching { tv.stop() }
+        stopStream()
         server?.stop()
         server = null
     }

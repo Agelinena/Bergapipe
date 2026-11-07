@@ -29,6 +29,8 @@ class CastControlActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Fechar a janela não para a TV: os controles continuam na barra e na notificação.
+        setFinishOnTouchOutside(false)
         buildLayout()
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -55,7 +57,8 @@ class CastControlActivity : ComponentActivity() {
             is CastState.Active -> {
                 title.text = state.title
                 status.text = getString(R.string.berga_cast_on_device, state.deviceName) +
-                    if (state.quality.isNotEmpty()) " · ${state.quality}" else ""
+                    (if (state.quality.isNotEmpty()) " · ${state.quality}" else "") +
+                    (state.downloaded?.let { " · " + getString(R.string.berga_cast_downloaded, (it * 100).toInt()) } ?: "")
                 progress.visibility = View.GONE
                 seek.visibility = View.VISIBLE
                 times.visibility = View.VISIBLE
@@ -121,7 +124,7 @@ class CastControlActivity : ComponentActivity() {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.END
             addView(button(R.string.berga_cast_stop) { CastManager.stop(); finish() })
-            addView(button(R.string.berga_close) { CastManager.dismissError(); finish() })
+            addView(button(R.string.berga_cast_minimize) { CastManager.dismissError(); finish() })
         }
         setContentView(LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL

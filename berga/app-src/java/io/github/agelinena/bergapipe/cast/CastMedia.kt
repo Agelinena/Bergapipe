@@ -29,6 +29,8 @@ import java.io.FileOutputStream
 import java.io.IOException
 import java.net.SocketException
 import java.net.SocketTimeoutException
+import java.util.concurrent.ConcurrentLinkedQueue
+import kotlin.concurrent.thread
 
 /** Vídeo e áudio escolhidos para a TV. Ou os dois separados, ou um arquivo já misturado. */
 data class CastPlan(val video: VideoStream?, val audio: AudioStream?, val muxed: VideoStream?) {
@@ -52,7 +54,7 @@ class CastMediaPreparer(
 
         plan.muxed?.let { muxed ->
             val out = File(workDir, "media.mp4")
-            fetch(listOf(muxed), listOf(out))
+            download(listOf(muxed), listOf(out))
             return out
         }
 
@@ -60,7 +62,7 @@ class CastMediaPreparer(
         val audio = plan.audio!!
         val videoFile = File(workDir, "video.media")
         val audioFile = File(workDir, "audio.media")
-        fetch(listOf(video, audio), listOf(videoFile, audioFile))
+        download(listOf(video, audio), listOf(videoFile, audioFile))
         checkCancelled()
 
         onProgress(null)
@@ -88,29 +90,59 @@ class CastMediaPreparer(
 
     private var totalBytes = 0L
     private var doneBytes = 0L
+    /** Um dos downloads paralelos falhou: os outros param também. */
+    @Volatile private var aborted = false
 
-    private fun fetch(streams: List<Stream>, files: List<File>) {
-        totalBytes = 0
-        doneBytes = 0
+    /**
+     * Baixa os formatos, cada um no seu arquivo, crescendo do começo para o fim. Os de URL
+     * baixam em paralelo e os SABR numa sessão só, então vídeo e áudio avançam juntos (o que
+     * permite começar a tocar antes do fim, em [CastHlsStream]).
+     */
+    fun download(streams: List<Stream>, files: List<File>) {
+        synchronized(this) {
+            totalBytes = 0
+            doneBytes = 0
+        }
+        aborted = false
         val sabr = streams.indices.filter { streams[it].deliveryMethod == DeliveryMethod.SABR }
         val direct = streams.indices - sabr.toSet()
-        for (i in direct) {
-            val stream = streams[i]
-            if (!stream.isUrl) throw IOException("Formato sem endereço direto (${stream.deliveryMethod})")
-            fetchUrl(stream.content, stream.itagItem?.contentLength ?: -1, files[i])
+        val errors = ConcurrentLinkedQueue<Throwable>()
+        fun guarded(block: () -> Unit) {
+            try {
+                block()
+            } catch (t: Throwable) {
+                errors += t
+                aborted = true
+            }
         }
-        if (sabr.isNotEmpty()) {
-            fetchSabr(sabr.map { streams[it] }, sabr.map { files[it] })
+        val threads = direct.map { i ->
+            thread(name = "BergaCastFetch$i") {
+                guarded {
+                    val stream = streams[i]
+                    if (!stream.isUrl) throw IOException("Formato sem endereço direto (${stream.deliveryMethod})")
+                    fetchUrl(stream.content, stream.itagItem?.contentLength ?: -1, files[i])
+                }
+            }
         }
+        if (sabr.isNotEmpty()) guarded { fetchSabr(sabr.map { streams[it] }, sabr.map { files[it] }) }
+        threads.forEach { it.join() }
+        // Prefere o erro de verdade ao "cancelado" que ele causou nos outros downloads.
+        (errors.firstOrNull { it !is CancelledException } ?: errors.firstOrNull())?.let { throw it }
     }
 
+    @Synchronized
+    private fun addTotal(bytes: Long) {
+        if (bytes > 0) totalBytes += bytes
+    }
+
+    @Synchronized
     private fun reportBytes(delta: Long) {
         doneBytes += delta
         onProgress(if (totalBytes > 0) (doneBytes.toFloat() / totalBytes).coerceIn(0f, 1f) else 0f)
     }
 
     private fun checkCancelled() {
-        if (isCancelled()) throw CancelledException()
+        if (isCancelled() || aborted) throw CancelledException()
     }
 
     /** Baixa por URL em pedaços, com a mesma fonte HTTP que o player usa para o YouTube. */
@@ -120,7 +152,7 @@ class CastMediaPreparer(
             .setRnParameterEnabled(true)
         var position = 0L
         var knownLength = if (expectedLength > 0) expectedLength else -1L
-        if (knownLength > 0) totalBytes += knownLength
+        addTotal(knownLength)
         val buffer = ByteArray(64 * 1024)
         FileOutputStream(file).use { out ->
             while (knownLength < 0 || position < knownLength) {
@@ -141,7 +173,7 @@ class CastMediaPreparer(
                 if (knownLength < 0) {
                     knownLength = source.responseHeaders["Content-Range"]?.firstOrNull()
                         ?.substringAfterLast('/')?.toLongOrNull() ?: -1
-                    if (knownLength > 0) totalBytes += knownLength
+                    addTotal(knownLength)
                 }
                 var readInChunk = 0L
                 try {
@@ -174,7 +206,7 @@ class CastMediaPreparer(
         val built = SabrDownloadFormatResolver.buildTargets(info, recoveries, workDir)
         // Usa os nomes de arquivo que o preparador espera.
         val targets = built.mapIndexed { i, target -> target.copy(file = files[i]) }
-        totalBytes += targets.sumOf { it.format.contentLength.coerceAtLeast(0) }
+        addTotal(targets.sumOf { it.format.contentLength.coerceAtLeast(0) })
 
         val session = YoutubeSabrSession(info)
         val poToken = info.poToken ?: throw IOException("O YouTube não liberou este vídeo (sem PO Token)")
